@@ -68,11 +68,11 @@ function Bookshelf() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-zinc-950 text-white">
+      <main className="min-h-screen bg-[#f8f7fb] text-zinc-900">
         <div className="flex min-h-screen items-center justify-center px-4">
           <div className="text-center">
-            <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-zinc-700 border-t-indigo-500"></div>
-            <p className="text-sm font-medium text-zinc-300 sm:text-base">Loading your bookshelf...</p>
+            <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-zinc-200 border-t-indigo-500"></div>
+            <p className="text-sm font-medium text-zinc-600 sm:text-base">Loading your bookshelf...</p>
           </div>
         </div>
       </main>
@@ -80,9 +80,9 @@ function Bookshelf() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="min-h-screen bg-[#f8f7fb] text-zinc-900">
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-        <header className="mb-8 rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-7 lg:p-8">
+        <header className="mb-8 rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 lg:p-8">
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
               <span className="mb-3 inline-flex rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-indigo-300">
@@ -91,8 +91,8 @@ function Bookshelf() {
 
               <h1 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">Bookshelf</h1>
 
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-base">
-                You have <strong className="font-semibold text-white">{books.length}</strong>{" "}
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base">
+                You have <strong className="font-semibold text-zinc-900">{books.length}</strong>{" "}
                 saved {books.length === 1 ? "book" : "books"}.
               </p>
             </div>
@@ -106,14 +106,14 @@ function Bookshelf() {
           </div>
         </header>
 
-        <section className="mb-8 rounded-3xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
+        <section className="mb-8 rounded-3xl border border-zinc-200 bg-white p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <input
               type="text"
               placeholder="Search novels..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-2xl border border-white/10 bg-zinc-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-500 focus:border-indigo-400/60 focus:ring-4 focus:ring-indigo-500/10 lg:max-w-md"
+              className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-500 focus:border-indigo-400/60 focus:ring-4 focus:ring-indigo-500/10 lg:max-w-md"
             />
 
             <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:justify-end lg:overflow-visible">
@@ -124,7 +124,7 @@ function Bookshelf() {
                   className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold capitalize transition sm:text-sm ${
                     activeGenre === genre
                       ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25"
-                      : "border border-white/10 bg-zinc-900/70 text-zinc-300 hover:bg-zinc-800"
+                      : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
                   }`}
                 >
                   {genre}
@@ -149,9 +149,9 @@ function Bookshelf() {
         )}
 
         {!error && filteredBooks.length === 0 && (
-          <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-10 text-center">
+          <section className="rounded-3xl border border-zinc-200 bg-white p-10 text-center">
             <h2 className="text-2xl font-black">No books found</h2>
-            <p className="mt-2 text-sm text-zinc-400">Try changing your search or filter.</p>
+            <p className="mt-2 text-sm text-zinc-600">Try changing your search or filter.</p>
           </section>
         )}
 
