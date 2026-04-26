@@ -1,4 +1,4 @@
-import { Eye } from "lucide-react";
+import { Eye, PenLine } from "lucide-react";
 
 const getCoverUrl = (cover, backendUrl) => {
   if (!cover) {
@@ -26,7 +26,16 @@ function LibraryBookCard({ book, backendUrl, onRead }) {
 
   const title = book.title || "Untitled Novel";
   const views = Number(book.views || 0).toLocaleString();
-  const ageTag = book.ageLimit || book.age || book.cat || (book.genre ? "16+" : "13+");
+
+  const ageTag =
+    book.ageLimit || book.age || book.cat || (book.genre ? "16+" : "13+");
+
+  const authorName =
+    book.author?.penName ||
+    book.authorName ||
+    book.pen_name ||
+    book.penName ||
+    "Unknown Author";
 
   const handleRead = () => {
     if (!bookSlug) return;
@@ -59,6 +68,11 @@ function LibraryBookCard({ book, backendUrl, onRead }) {
         <h3 className="mt-3 line-clamp-2 min-h-10 text-sm font-semibold leading-tight text-zinc-900">
           {title}
         </h3>
+
+        <div className="mt-2 flex items-center gap-2 text-sm text-zinc-500">
+          <PenLine size={15} strokeWidth={2.2} className="text-zinc-400" />
+          <span className="line-clamp-1">{authorName}</span>
+        </div>
 
         <div className="mt-1 flex items-center gap-2 text-sm text-zinc-500">
           <Eye size={16} strokeWidth={2.2} className="text-zinc-400" />

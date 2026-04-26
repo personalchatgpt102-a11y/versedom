@@ -1,5 +1,6 @@
 import express from "express";
 import Book from "../models/Book.js";
+import Chapter from "../models/Chapter.js";
 import Bookshelf from "../models/Bookshelf.js";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
@@ -59,6 +60,37 @@ const resolveBookshelfItem = async (userId, book, slugOrUrl) => {
   });
 };
 
+const normalizeBookPayload = (book) => {
+  return {
+    _id: book._id,
+    oldId: book.oldId,
+    title: book.title,
+    slug: book.slug,
+    url: book.url,
+    genre: book.genre,
+    rating: book.rating,
+    language: book.language,
+    type: book.type,
+    views: book.views,
+    likes: book.likes,
+    status: book.status,
+    progress: book.progress,
+    description: book.description || book.synopsis || "",
+    cover: book.cover || book.img || "",
+    author: {
+      oldId: book.author?.oldId || null,
+      penName: book.author?.penName || "Unknown Author",
+      gender: book.author?.gender || "",
+      bio: book.author?.bio || "",
+      token: book.author?.token || "",
+    },
+  };
+};
+
+const getBookSlugCandidates = (book, fallbackSlug) => {
+  return [book.slug, book.url, fallbackSlug].filter(Boolean);
+};
+
 router.get("/", async (req, res) => {
   try {
     const search = req.query.search || "";
@@ -72,6 +104,7 @@ router.get("/", async (req, res) => {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
         { genre: { $regex: search, $options: "i" } },
+        { "author.penName": { $regex: search, $options: "i" } },
         { tags: { $regex: search, $options: "i" } },
       ];
     }
@@ -87,7 +120,7 @@ router.get("/", async (req, res) => {
       Book.countDocuments(query),
     ]);
 
-    res.json({
+    return res.json({
       page,
       limit,
       total,
@@ -95,7 +128,7 @@ router.get("/", async (req, res) => {
       books,
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to get books",
       error: error.message,
     });
@@ -105,15 +138,16 @@ router.get("/", async (req, res) => {
 router.get("/genres", async (_req, res) => {
   try {
     const genres = await Book.distinct("genre");
+
     const cleaned = genres
       .filter(Boolean)
       .map((genre) => String(genre).trim())
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
 
-    res.json({ genres: cleaned });
+    return res.json({ genres: cleaned });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to get genres",
       error: error.message,
     });
@@ -129,52 +163,39 @@ router.get("/:slug/chapters", async (req, res) => {
       return res.status(404).json({ message: "Book not found" });
     }
 
+    const slugCandidates = getBookSlugCandidates(book, slug);
+
+    const chapters = await Chapter.find({
+      bookSlug: { $in: slugCandidates },
+    })
+      .sort({ chapterNumber: 1 })
+      .select("_id chapterNumber title")
+      .lean();
+
     const user = await resolveUserFromAuthHeader(req.headers.authorization);
-    const shelfItem = user ? await resolveBookshelfItem(user._id, book, slug) : null;
+    const shelfItem = user
+      ? await resolveBookshelfItem(user._id, book, slug)
+      : null;
 
     const currentChapter = Number(shelfItem?.reading || 1);
     const readChapters = normalizeReadNumbers(shelfItem?.verses || []);
 
-    const explicitTotal =
-      Number(book.totalChapters) ||
-      Number(book.chaptersCount) ||
-      Number(book.chapterCount);
-
-    const inferredTotal = Math.max(
-      currentChapter,
-      readChapters.length ? readChapters[readChapters.length - 1] : 0,
-      30
-    );
-
-    const totalChapters = Math.max(explicitTotal || 0, inferredTotal);
-
-    const chapters = Array.from({ length: totalChapters }, (_, index) => ({
-      number: index + 1,
-      title: `Chapter ${index + 1}`,
-    }));
-
-    res.json({
+    return res.json({
       slug: book.slug || book.url || slug,
-      book: {
-        _id: book._id,
-        title: book.title,
-        slug: book.slug,
-        url: book.url,
-        genre: book.genre,
-        rating: book.rating,
-        language: book.language,
-        description: book.description || book.synopsis || "",
-        cover: book.cover || book.img || "",
-      },
+      book: normalizeBookPayload(book),
       progress: {
         currentChapter,
         readChapters,
       },
-      totalChapters,
-      chapters,
+      totalChapters: chapters.length,
+      chapters: chapters.map((chapter) => ({
+        id: chapter._id,
+        number: chapter.chapterNumber,
+        title: chapter.title || `Chapter ${chapter.chapterNumber}`,
+      })),
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to get chapters",
       error: error.message,
     });
@@ -196,30 +217,30 @@ router.get("/:slug/chapters/:chapter", async (req, res) => {
       return res.status(404).json({ message: "Book not found" });
     }
 
-    const chapterTitle = `Chapter ${chapterNumber}`;
-    const chapterText = [
-      `${chapterTitle}`,
-      "",
-      `You are reading "${book.title || "this novel"}".`,
-      "This project currently has migrated catalog and progress data.",
-      "Full chapter text is not available in the imported database yet.",
-    ].join("\n");
+    const slugCandidates = getBookSlugCandidates(book, slug);
 
-    res.json({
-      book: {
-        _id: book._id,
-        title: book.title,
-        slug: book.slug,
-        url: book.url,
-      },
+    const chapter = await Chapter.findOne({
+      bookSlug: { $in: slugCandidates },
+      chapterNumber,
+    }).lean();
+
+    if (!chapter) {
+      return res.status(404).json({
+        message: "Chapter not found. Run node scripts/importChapters.js first.",
+      });
+    }
+
+    return res.json({
+      book: normalizeBookPayload(book),
       chapter: {
-        number: chapterNumber,
-        title: chapterTitle,
-        content: chapterText,
+        id: chapter._id,
+        number: chapter.chapterNumber,
+        title: chapter.title || `Chapter ${chapter.chapterNumber}`,
+        content: chapter.content || "",
       },
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to get chapter",
       error: error.message,
     });
@@ -261,17 +282,21 @@ router.patch("/:slug/progress", async (req, res) => {
         date: new Date(),
       });
     } else {
-      const readNumbers = normalizeReadNumbers([...(item.verses || []), chapter]);
+      const readNumbers = normalizeReadNumbers([
+        ...(item.verses || []),
+        chapter,
+      ]);
 
       item.book = item.book || book._id;
       item.sid = item.sid || sid;
       item.reading = Math.max(Number(item.reading || 1), chapter);
       item.verses = readNumbers;
       item.date = new Date();
+
       await item.save();
     }
 
-    res.json({
+    return res.json({
       message: "Progress updated",
       progress: {
         currentChapter: item.reading,
@@ -279,7 +304,7 @@ router.patch("/:slug/progress", async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to update progress",
       error: error.message,
     });
@@ -296,9 +321,9 @@ router.get("/:slug", async (req, res) => {
       });
     }
 
-    res.json(book);
+    return res.json(normalizeBookPayload(book));
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to get book",
       error: error.message,
     });

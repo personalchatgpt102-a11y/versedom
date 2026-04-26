@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -13,7 +14,6 @@ const fixOldPhpHash = (hash) => {
 const checkPassword = async (user, password) => {
   const hash = fixOldPhpHash(user.passwordHash);
 
-  // New Mongo password check
   const normalMatch = await bcrypt.compare(password, hash);
 
   if (normalMatch) {
@@ -23,8 +23,6 @@ const checkPassword = async (user, password) => {
     };
   }
 
-  // Old PHP password check
-  // Old PHP hashed: time + password
   if (user.oldCreatedTime) {
     const legacyValue = `${user.oldCreatedTime}${password}`;
     const legacyMatch = await bcrypt.compare(legacyValue, hash);
@@ -43,11 +41,30 @@ const checkPassword = async (user, password) => {
   };
 };
 
+const createToken = (user) => {
+  return jwt.sign(
+    {
+      id: user._id,
+      email: user.email,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+};
+
+const sanitizeUser = (user) => {
+  return {
+    id: user._id,
+    email: user.email,
+    mode: user.mode,
+    provider: user.provider,
+    profile: user.profile || {},
+  };
+};
+
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    console.log("Login request email:", email);
 
     if (!email || !password) {
       return res.status(400).json({
@@ -59,8 +76,6 @@ router.post("/login", async (req, res) => {
       email: email.toLowerCase().trim(),
     });
 
-    console.log("User found:", user ? user.email : null);
-
     if (!user) {
       return res.status(401).json({
         message: "Invalid email or password",
@@ -69,46 +84,26 @@ router.post("/login", async (req, res) => {
 
     const passwordResult = await checkPassword(user, password);
 
-    console.log("Password matched:", passwordResult.matched);
-    console.log("Password type:", passwordResult.type);
-
     if (!passwordResult.matched) {
       return res.status(401).json({
         message: "Invalid email or password",
       });
     }
 
-    // Optional but smart:
-    // If old legacy password worked, convert it to normal Mongo bcrypt password.
     if (passwordResult.type === "legacy") {
       user.passwordHash = await bcrypt.hash(password, 10);
+      user.passwordMigrated = true;
       await user.save();
-
-      console.log("Legacy password upgraded to normal bcrypt hash");
     }
 
-    const token = jwt.sign(
-      {
-        id: user._id,
-        email: user.email,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = createToken(user);
 
     return res.json({
       message: "Login successful",
       token,
-      user: {
-        id: user._id,
-        email: user.email,
-        mode: user.mode,
-        profile: user.profile || {},
-      },
+      user: sanitizeUser(user),
     });
   } catch (error) {
-    console.error("Login error:", error);
-
     return res.status(500).json({
       message: "Login failed",
       error: error.message,
@@ -116,6 +111,16 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.get("/me", authMiddleware, async (req, res) => {
+  return res.json({
+    user: sanitizeUser(req.user),
+  });
+});
+
+/*
+  DEV ONLY.
+  Delete this route before production.
+*/
 router.post("/reset-test-password", async (req, res) => {
   try {
     const { email, newPassword } = req.body;
@@ -129,12 +134,16 @@ router.post("/reset-test-password", async (req, res) => {
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     const user = await User.findOneAndUpdate(
-      { email: email.toLowerCase().trim() },
+      {
+        email: email.toLowerCase().trim(),
+      },
       {
         passwordHash,
         passwordMigrated: true,
       },
-      { new: true }
+      {
+        returnDocument: "after",
+      }
     );
 
     if (!user) {
