@@ -55,7 +55,7 @@ function Navbar() {
             onClick={() => navigate("/")}
             className="font-serif text-[38px] font-light italic tracking-wide text-[#39206f]"
           >
-            Dreame
+            Versedom
           </button>
 
           <div className="hidden items-center gap-8 lg:flex">
