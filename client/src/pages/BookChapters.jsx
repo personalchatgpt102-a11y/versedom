@@ -93,7 +93,8 @@ function BookChapters() {
   const title = book.title || "Book";
   const cover = getCoverUrl(book.cover);
   const chapters = data.chapters || [];
-  const currentChapter = Number(data.progress?.currentChapter || 1);
+  const hasChapters = chapters.length > 0;
+  const currentChapter = Number(data.progress?.currentChapter || chapters[0]?.number || 1);
   const readChapterNumbers = data.progress?.readChapters || [];
 
   return (
@@ -138,10 +139,11 @@ function BookChapters() {
               </div>
 
               <button
-                onClick={() => openChapter(currentChapter)}
-                className="mt-6 w-full rounded-2xl bg-indigo-500 px-5 py-4 text-sm font-black text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400 sm:w-auto sm:min-w-52"
+                onClick={() => hasChapters && openChapter(currentChapter)}
+                disabled={!hasChapters}
+                className="mt-6 w-full rounded-2xl bg-indigo-500 px-5 py-4 text-sm font-black text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-300 disabled:shadow-none sm:w-auto sm:min-w-52"
               >
-                Read Current Chapter
+                {hasChapters ? "Read Current Chapter" : "No Chapters Available"}
               </button>
             </div>
           </div>
@@ -156,52 +158,58 @@ function BookChapters() {
             <p className="text-sm text-zinc-500">{chapters.length} total chapters</p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {chapters.map((chapter) => {
-              const chapterNumber = Number(chapter.number);
-              const isRead = readChapterNumbers.includes(chapterNumber);
-              const isCurrent = chapterNumber === currentChapter;
+          {hasChapters ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {chapters.map((chapter) => {
+                const chapterNumber = Number(chapter.number);
+                const isRead = readChapterNumbers.includes(chapterNumber);
+                const isCurrent = chapterNumber === currentChapter;
 
-              return (
-                <button
-                  key={chapterNumber}
-                  onClick={() => openChapter(chapterNumber)}
-                  className={`group rounded-3xl border p-5 text-left transition hover:-translate-y-0.5 ${
-                    isCurrent
-                      ? "border-indigo-400/50 bg-indigo-500/15"
-                      : "border-white/10 bg-white/[0.04] hover:border-indigo-400/40 hover:bg-white/[0.07]"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <span className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-                        Chapter {chapterNumber}
+                return (
+                  <button
+                    key={chapterNumber}
+                    onClick={() => openChapter(chapterNumber)}
+                    className={`group rounded-3xl border p-5 text-left transition hover:-translate-y-0.5 ${
+                      isCurrent
+                        ? "border-indigo-400/50 bg-indigo-500/15"
+                        : "border-white/10 bg-white/[0.04] hover:border-indigo-400/40 hover:bg-white/[0.07]"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <span className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+                          Chapter {chapterNumber}
+                        </span>
+                        <h3 className="mt-2 line-clamp-2 text-base font-black text-white">
+                          {chapter.title || `Chapter ${chapterNumber}`}
+                        </h3>
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
+                          isRead
+                            ? "bg-emerald-400 text-zinc-950"
+                            : isCurrent
+                            ? "bg-indigo-400 text-zinc-950"
+                            : "bg-zinc-800 text-zinc-400"
+                        }`}
+                      >
+                        {isRead ? "Read" : isCurrent ? "Current" : "Unread"}
                       </span>
-                      <h3 className="mt-2 line-clamp-2 text-base font-black text-white">
-                        {chapter.title || `Chapter ${chapterNumber}`}
-                      </h3>
                     </div>
 
-                    <span
-                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
-                        isRead
-                          ? "bg-emerald-400 text-zinc-950"
-                          : isCurrent
-                          ? "bg-indigo-400 text-zinc-950"
-                          : "bg-zinc-800 text-zinc-400"
-                      }`}
-                    >
-                      {isRead ? "Read" : isCurrent ? "Current" : "Unread"}
-                    </span>
-                  </div>
-
-                  <div className="mt-5 text-sm font-bold text-indigo-300 transition group-hover:text-indigo-200">
-                    Open Chapter
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                    <div className="mt-5 text-sm font-bold text-indigo-300 transition group-hover:text-indigo-200">
+                      Open Chapter
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-amber-400/30 bg-amber-500/10 p-6 text-sm text-amber-100">
+              No chapters are available for this book in the current database yet.
+            </div>
+          )}
         </section>
       </div>
     </main>
