@@ -75,6 +75,11 @@ function UserDropdown({ user, onLogout }) {
     navigate("/profile#settings-section");
   };
 
+  const goToBookshelf = () => {
+    setIsOpen(false);
+    navigate("/bookshelf");
+  };
+
   const handleLogoutClick = () => {
     setIsOpen(false);
     onLogout();
@@ -124,6 +129,13 @@ function UserDropdown({ user, onLogout }) {
           <UserTokenFields profile={user?.profile} className="mt-3" />
 
           <div className="mt-3 grid gap-1">
+            <button
+              onClick={goToBookshelf}
+              className="w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100"
+            >
+              Bookshelf
+            </button>
+
             <button
               onClick={goToProfile}
               className="w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100"
