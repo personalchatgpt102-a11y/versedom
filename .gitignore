@@ -1,0 +1,14 @@
+# Environment files
+.env
+.env.*
+client/.env
+server/.env
+
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Uploads
+uploads/
+server/uploads/
