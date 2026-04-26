@@ -6,6 +6,7 @@ import Library from "./pages/Library";
 import BookChapters from "./pages/BookChapters";
 import ReadChapter from "./pages/ReadChapter";
 import Profile from "./pages/Profile";
+import AuthorDashboard from "./pages/AuthorDashboard";
 
 function App() {
   return (
@@ -28,6 +29,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/author/dashboard"
+          element={
+            <ProtectedRoute>
+              <AuthorDashboard />
             </ProtectedRoute>
           }
         />

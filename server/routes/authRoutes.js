@@ -41,11 +41,12 @@ const checkPassword = async (user, password) => {
   };
 };
 
-const createToken = (user) => {
+const createToken = (user, role = "user") => {
   return jwt.sign(
     {
       id: user._id,
       email: user.email,
+      role,
     },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
@@ -59,22 +60,48 @@ const sanitizeUser = (user) => {
     mode: user.mode,
     provider: user.provider,
     profile: user.profile || {},
+    authorProfile: user.authorProfile || {
+      isAuthor: false,
+    },
   };
+};
+
+const validateLoginInput = (email, password) => {
+  if (!email || !password) {
+    return "Email and password are required";
+  }
+
+  return null;
+};
+
+const findUserByEmail = async (email) => {
+  return User.findOne({
+    email: email.toLowerCase().trim(),
+  });
+};
+
+const upgradeLegacyPasswordIfNeeded = async (user, password, passwordType) => {
+  if (passwordType !== "legacy") return;
+
+  user.passwordHash = await bcrypt.hash(password, 10);
+  user.passwordMigrated = true;
+
+  await user.save();
 };
 
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    const inputError = validateLoginInput(email, password);
+
+    if (inputError) {
       return res.status(400).json({
-        message: "Email and password are required",
+        message: inputError,
       });
     }
 
-    const user = await User.findOne({
-      email: email.toLowerCase().trim(),
-    });
+    const user = await findUserByEmail(email);
 
     if (!user) {
       return res.status(401).json({
@@ -90,13 +117,9 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    if (passwordResult.type === "legacy") {
-      user.passwordHash = await bcrypt.hash(password, 10);
-      user.passwordMigrated = true;
-      await user.save();
-    }
+    await upgradeLegacyPasswordIfNeeded(user, password, passwordResult.type);
 
-    const token = createToken(user);
+    const token = createToken(user, "user");
 
     return res.json({
       message: "Login successful",
@@ -111,6 +134,57 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.post("/author/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const inputError = validateLoginInput(email, password);
+
+    if (inputError) {
+      return res.status(400).json({
+        message: inputError,
+      });
+    }
+
+    const user = await findUserByEmail(email);
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    const passwordResult = await checkPassword(user, password);
+
+    if (!passwordResult.matched) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    if (!user.authorProfile?.isAuthor) {
+      return res.status(403).json({
+        message: "This account is not registered as an author",
+      });
+    }
+
+    await upgradeLegacyPasswordIfNeeded(user, password, passwordResult.type);
+
+    const token = createToken(user, "author");
+
+    return res.json({
+      message: "Author login successful",
+      token,
+      user: sanitizeUser(user),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Author login failed",
+      error: error.message,
+    });
+  }
+});
+
 router.get("/me", authMiddleware, async (req, res) => {
   return res.json({
     user: sanitizeUser(req.user),
@@ -119,7 +193,7 @@ router.get("/me", authMiddleware, async (req, res) => {
 
 /*
   DEV ONLY.
-  Delete this route before production.
+  Delete before production.
 */
 router.post("/reset-test-password", async (req, res) => {
   try {
@@ -163,5 +237,7 @@ router.post("/reset-test-password", async (req, res) => {
     });
   }
 });
+
+
 
 export default router;

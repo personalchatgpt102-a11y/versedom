@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { BookOpen, LayoutDashboard, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
@@ -22,17 +23,31 @@ function LoginModal({ isOpen, onClose }) {
     confirmPassword: "",
   });
 
+  const [loggedInUser, setLoggedInUser] = useState(null);
+  const [loggedInToken, setLoggedInToken] = useState("");
+
   const [loading, setLoading] = useState(false);
+  const [authorLoading, setAuthorLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const saveAuth = ({ token, user, accountMode = "reader" }) => {
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("accountMode", accountMode);
+    window.dispatchEvent(new Event("auth-changed"));
+  };
 
   const closeModal = () => {
     setMode("options");
     setError("");
     setSuccess("");
     setLoading(false);
+    setAuthorLoading(false);
     setShowPassword(false);
     setShowResetPassword(false);
+    setLoggedInUser(null);
+    setLoggedInToken("");
     onClose();
   };
 
@@ -56,7 +71,10 @@ function LoginModal({ isOpen, onClose }) {
     setSuccess("");
 
     if (!formData.email && resetData.email) {
-      setFormData((prev) => ({ ...prev, email: resetData.email }));
+      setFormData((prev) => ({
+        ...prev,
+        email: resetData.email,
+      }));
     }
   };
 
@@ -66,7 +84,49 @@ function LoginModal({ isOpen, onClose }) {
     setSuccess("");
 
     if (!resetData.email && formData.email) {
-      setResetData((prev) => ({ ...prev, email: formData.email }));
+      setResetData((prev) => ({
+        ...prev,
+        email: formData.email,
+      }));
+    }
+  };
+
+  const handleWebsiteChoice = () => {
+    saveAuth({
+      token: loggedInToken,
+      user: loggedInUser,
+      accountMode: "reader",
+    });
+
+    closeModal();
+    navigate("/bookshelf");
+  };
+
+  const handleAuthorChoice = async () => {
+    try {
+      setAuthorLoading(true);
+      setError("");
+
+      const res = await api.post("/auth/author/login", {
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+
+      saveAuth({
+        token: res.data.token,
+        user: res.data.user,
+        accountMode: "author",
+      });
+
+      closeModal();
+      navigate("/author/dashboard");
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Author login failed. Please try again."
+      );
+    } finally {
+      setAuthorLoading(false);
     }
   };
 
@@ -88,9 +148,30 @@ function LoginModal({ isOpen, onClose }) {
         password: formData.password,
       });
 
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-      window.dispatchEvent(new Event("auth-changed"));
+      const user = res.data.user;
+      const token = res.data.token;
+
+      const isAuthor = Boolean(user?.authorProfile?.isAuthor);
+
+      if (isAuthor) {
+        setLoggedInUser(user);
+        setLoggedInToken(token);
+
+        saveAuth({
+          token,
+          user,
+          accountMode: "reader",
+        });
+
+        setMode("chooseAccount");
+        return;
+      }
+
+      saveAuth({
+        token,
+        user,
+        accountMode: "reader",
+      });
 
       closeModal();
       navigate("/bookshelf");
@@ -131,15 +212,29 @@ function LoginModal({ isOpen, onClose }) {
         newPassword: resetData.newPassword,
       });
 
-      setSuccess(res.data?.message || "Password reset successful. Please log in.");
-      setFormData((prev) => ({ ...prev, email, password: "" }));
-      setResetData((prev) => ({ ...prev, newPassword: "", confirmPassword: "" }));
+      setSuccess(
+        res.data?.message || "Password reset successful. Please log in."
+      );
+
+      setFormData((prev) => ({
+        ...prev,
+        email,
+        password: "",
+      }));
+
+      setResetData((prev) => ({
+        ...prev,
+        newPassword: "",
+        confirmPassword: "",
+      }));
 
       setTimeout(() => {
         setMode("email");
       }, 800);
     } catch (err) {
-      setError(err.response?.data?.message || "Password reset failed. Try again.");
+      setError(
+        err.response?.data?.message || "Password reset failed. Try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -156,16 +251,24 @@ function LoginModal({ isOpen, onClose }) {
           onMouseDown={closeModal}
         >
           <motion.div
-            className="relative w-full max-w-[540px] overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="relative w-full max-w-[560px] overflow-hidden rounded-3xl bg-white shadow-2xl"
             initial={{ opacity: 0, scale: 0.92, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 30 }}
-            transition={{ type: "spring", stiffness: 260, damping: 24 }}
+            transition={{
+              type: "spring",
+              stiffness: 260,
+              damping: 24,
+            }}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-5 sm:px-10">
               <h2 className="text-2xl font-black tracking-tight text-zinc-900">
-                {mode === "reset" ? "RESET PASSWORD" : "LOG IN"}
+                {mode === "reset"
+                  ? "RESET PASSWORD"
+                  : mode === "chooseAccount"
+                    ? "CHOOSE ACCOUNT"
+                    : "LOG IN"}
               </h2>
 
               <button
@@ -173,7 +276,7 @@ function LoginModal({ isOpen, onClose }) {
                 className="grid h-10 w-10 place-items-center rounded-full text-3xl leading-none text-zinc-900 transition hover:bg-zinc-100"
                 aria-label="Close login modal"
               >
-                x
+                ×
               </button>
             </div>
 
@@ -231,14 +334,31 @@ function LoginModal({ isOpen, onClose }) {
                       onClick={() => setAccepted((prev) => !prev)}
                       className={[
                         "mt-[2px] grid h-5 w-5 shrink-0 place-items-center rounded-full border transition",
-                        accepted ? "border-[#6544ff] bg-[#6544ff]" : "border-zinc-300 bg-white",
+                        accepted
+                          ? "border-[#6544ff] bg-[#6544ff]"
+                          : "border-zinc-300 bg-white",
                       ].join(" ")}
                     >
-                      {accepted && <span className="h-2 w-2 rounded-full bg-white"></span>}
+                      {accepted && (
+                        <span className="h-2 w-2 rounded-full bg-white"></span>
+                      )}
                     </button>
 
                     <span>
-                      I have read and agree to the <a href="#" className="text-zinc-600 underline underline-offset-2">Terms Of Service</a> and <a href="#" className="text-zinc-600 underline underline-offset-2">Privacy Policy</a>
+                      I have read and agree to the{" "}
+                      <a
+                        href="#"
+                        className="text-zinc-600 underline underline-offset-2"
+                      >
+                        Terms Of Service
+                      </a>{" "}
+                      and{" "}
+                      <a
+                        href="#"
+                        className="text-zinc-600 underline underline-offset-2"
+                      >
+                        Privacy Policy
+                      </a>
                     </span>
                   </label>
                 </motion.div>
@@ -266,7 +386,9 @@ function LoginModal({ isOpen, onClose }) {
 
                   <div className="space-y-4">
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-zinc-700">Email</span>
+                      <span className="mb-2 block text-sm font-bold text-zinc-700">
+                        Email
+                      </span>
                       <input
                         type="email"
                         name="email"
@@ -279,7 +401,9 @@ function LoginModal({ isOpen, onClose }) {
                     </label>
 
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-zinc-700">Password</span>
+                      <span className="mb-2 block text-sm font-bold text-zinc-700">
+                        Password
+                      </span>
 
                       <div className="relative">
                         <input
@@ -317,19 +441,39 @@ function LoginModal({ isOpen, onClose }) {
                       onClick={() => setAccepted((prev) => !prev)}
                       className={[
                         "mt-[2px] grid h-5 w-5 shrink-0 place-items-center rounded-full border transition",
-                        accepted ? "border-[#6544ff] bg-[#6544ff]" : "border-zinc-300 bg-white",
+                        accepted
+                          ? "border-[#6544ff] bg-[#6544ff]"
+                          : "border-zinc-300 bg-white",
                       ].join(" ")}
                     >
-                      {accepted && <span className="h-2 w-2 rounded-full bg-white"></span>}
+                      {accepted && (
+                        <span className="h-2 w-2 rounded-full bg-white"></span>
+                      )}
                     </button>
 
                     <span>
-                      I agree to the <a href="#" className="underline">Terms Of Service</a> and <a href="#" className="underline">Privacy Policy</a>
+                      I agree to the{" "}
+                      <a href="#" className="underline">
+                        Terms Of Service
+                      </a>{" "}
+                      and{" "}
+                      <a href="#" className="underline">
+                        Privacy Policy
+                      </a>
                     </span>
                   </label>
 
-                  {error && <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
-                  {success && <p className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">{success}</p>}
+                  {error && (
+                    <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+                      {error}
+                    </p>
+                  )}
+
+                  {success && (
+                    <p className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+                      {success}
+                    </p>
+                  )}
 
                   <button
                     type="submit"
@@ -339,6 +483,78 @@ function LoginModal({ isOpen, onClose }) {
                     {loading ? "Logging in..." : "Log In"}
                   </button>
                 </motion.form>
+              )}
+
+              {mode === "chooseAccount" && (
+                <motion.div
+                  className="mx-auto max-w-[430px]"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <div className="rounded-3xl bg-gradient-to-br from-purple-50 via-white to-orange-50 p-5 text-center ring-1 ring-purple-100">
+                    <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#6544ff] text-white shadow-lg shadow-purple-500/25">
+                      <Sparkles size={24} />
+                    </div>
+
+                    <h3 className="mt-4 text-2xl font-black tracking-tight text-zinc-950">
+                      Welcome,{" "}
+                      {loggedInUser?.authorProfile?.penName ||
+                        loggedInUser?.profile?.firstName ||
+                        "Author"}
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-6 text-zinc-600">
+                      This account is also registered as an author. Where do you
+                      want to go?
+                    </p>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={handleWebsiteChoice}
+                      className="group rounded-3xl border border-zinc-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-[#6544ff]/30 hover:shadow-xl"
+                    >
+                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-purple-50 text-[#6544ff] transition group-hover:bg-[#6544ff] group-hover:text-white">
+                        <BookOpen size={22} />
+                      </div>
+
+                      <h4 className="mt-4 text-lg font-black text-zinc-950">
+                        Website
+                      </h4>
+
+                      <p className="mt-2 text-sm leading-6 text-zinc-500">
+                        Continue as reader and open your normal bookshelf.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleAuthorChoice}
+                      disabled={authorLoading}
+                      className="group rounded-3xl border border-zinc-200 bg-zinc-950 p-5 text-left text-white shadow-sm transition hover:-translate-y-1 hover:bg-[#6544ff] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10 text-white">
+                        <LayoutDashboard size={22} />
+                      </div>
+
+                      <h4 className="mt-4 text-lg font-black">
+                        Author Account
+                      </h4>
+
+                      <p className="mt-2 text-sm leading-6 text-white/70">
+                        Open your author dashboard and manage your books.
+                      </p>
+                    </button>
+                  </div>
+
+                  {error && (
+                    <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+                      {error}
+                    </p>
+                  )}
+                </motion.div>
               )}
 
               {mode === "reset" && (
@@ -363,7 +579,9 @@ function LoginModal({ isOpen, onClose }) {
 
                   <div className="space-y-4">
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-zinc-700">Email</span>
+                      <span className="mb-2 block text-sm font-bold text-zinc-700">
+                        Email
+                      </span>
                       <input
                         type="email"
                         name="email"
@@ -376,7 +594,9 @@ function LoginModal({ isOpen, onClose }) {
                     </label>
 
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-zinc-700">New Password</span>
+                      <span className="mb-2 block text-sm font-bold text-zinc-700">
+                        New Password
+                      </span>
                       <input
                         type={showResetPassword ? "text" : "password"}
                         name="newPassword"
@@ -389,7 +609,9 @@ function LoginModal({ isOpen, onClose }) {
                     </label>
 
                     <label className="block">
-                      <span className="mb-2 block text-sm font-bold text-zinc-700">Confirm Password</span>
+                      <span className="mb-2 block text-sm font-bold text-zinc-700">
+                        Confirm Password
+                      </span>
                       <input
                         type={showResetPassword ? "text" : "password"}
                         name="confirmPassword"
@@ -410,8 +632,17 @@ function LoginModal({ isOpen, onClose }) {
                     {showResetPassword ? "Hide Passwords" : "Show Passwords"}
                   </button>
 
-                  {error && <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
-                  {success && <p className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">{success}</p>}
+                  {error && (
+                    <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+                      {error}
+                    </p>
+                  )}
+
+                  {success && (
+                    <p className="mt-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+                      {success}
+                    </p>
+                  )}
 
                   <button
                     type="submit"

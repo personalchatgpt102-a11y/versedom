@@ -33,7 +33,18 @@ const normalizeReadNumbers = (verses = []) => {
 const resolveBook = async (slugOrUrl) => {
   return Book.findOne({
     $or: [{ slug: slugOrUrl }, { url: slugOrUrl }],
-  });
+  }).lean();
+};
+
+const pickFirstNonEmptyString = (...values) => {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const cleaned = value.trim();
+      if (cleaned) return cleaned;
+    }
+  }
+
+  return "";
 };
 
 const resolveUserFromAuthHeader = async (authorizationHeader) => {
@@ -61,6 +72,21 @@ const resolveBookshelfItem = async (userId, book, slugOrUrl) => {
 };
 
 const normalizeBookPayload = (book) => {
+  const description = pickFirstNonEmptyString(
+    book.description,
+    book.synopsis,
+    book.summary,
+    book.desc
+  );
+
+  const cover = pickFirstNonEmptyString(
+    book.cover,
+    book.img,
+    book.image,
+    book.coverImage,
+    book.thumbnail
+  );
+
   return {
     _id: book._id,
     oldId: book.oldId,
@@ -75,8 +101,8 @@ const normalizeBookPayload = (book) => {
     likes: book.likes,
     status: book.status,
     progress: book.progress,
-    description: book.description || book.synopsis || "",
-    cover: book.cover || book.img || "",
+    description,
+    cover,
     author: {
       oldId: book.author?.oldId || null,
       penName: book.author?.penName || "Unknown Author",
@@ -177,7 +203,9 @@ router.get("/:slug/chapters", async (req, res) => {
       ? await resolveBookshelfItem(user._id, book, slug)
       : null;
 
-    const currentChapter = Number(shelfItem?.reading || 1);
+    const currentChapter = chapters.length
+      ? Number(shelfItem?.reading || chapters[0]?.chapterNumber || 1)
+      : 0;
     const readChapters = normalizeReadNumbers(shelfItem?.verses || []);
 
     return res.json({

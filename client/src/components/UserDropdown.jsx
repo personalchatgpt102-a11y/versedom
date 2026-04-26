@@ -36,6 +36,7 @@ function UserDropdown({ user, onLogout }) {
 
   const displayName = useMemo(() => getDisplayName(user), [user]);
   const profileImage = useMemo(() => getProfileImage(user), [user]);
+  const isAuthor = useMemo(() => Boolean(user?.authorProfile?.isAuthor), [user]);
   const initials = useMemo(() => {
     const words = displayName.split(" ").filter(Boolean);
     return words.slice(0, 2).map((word) => word[0]?.toUpperCase()).join("") || "U";
@@ -78,6 +79,12 @@ function UserDropdown({ user, onLogout }) {
   const goToBookshelf = () => {
     setIsOpen(false);
     navigate("/bookshelf");
+  };
+
+  const goToAuthorDashboard = () => {
+    setIsOpen(false);
+    localStorage.setItem("accountMode", "author");
+    navigate("/author/dashboard");
   };
 
   const handleLogoutClick = () => {
@@ -142,6 +149,15 @@ function UserDropdown({ user, onLogout }) {
             >
               Profile
             </button>
+
+            {isAuthor && (
+              <button
+                onClick={goToAuthorDashboard}
+                className="w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100"
+              >
+                Author Dashboard
+              </button>
+            )}
 
             <button
               onClick={goToSettings}

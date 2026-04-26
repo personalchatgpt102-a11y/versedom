@@ -84,8 +84,38 @@ const userSchema = new mongoose.Schema(
 
       lastCoinUpdate: Date,
     },
+
+    authorProfile: {
+      isAuthor: {
+        type: Boolean,
+        default: false,
+      },
+
+      oldAuthorId: Number,
+
+      penName: {
+        type: String,
+        default: "",
+      },
+
+      gender: {
+        type: String,
+        default: "",
+      },
+
+      bio: {
+        type: String,
+        default: "",
+      },
+
+      token: {
+        type: String,
+        default: "",
+        index: true,
+      },
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model("User", userSchema);

@@ -6,6 +6,7 @@ import path from "path";
 import authRoutes from "./routes/authRoutes.js";
 import bookshelfRoutes from "./routes/bookshelfRoutes.js";
 import bookRoutes from "./routes/bookRoutes.js";
+import authorRoutes from "./routes/authorRoutes.js";
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/bookshelf", bookshelfRoutes);
 app.use("/api/books", bookRoutes);
+app.use("/api/author", authorRoutes);
 
 const PORT = process.env.PORT || 5000;
 

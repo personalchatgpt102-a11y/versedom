@@ -59,11 +59,11 @@ function ReadChapter() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-zinc-950 text-white">
+      <main className="min-h-screen bg-[#f8f7fb] text-zinc-900">
         <div className="flex min-h-screen items-center justify-center px-4">
           <div className="text-center">
-            <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-zinc-700 border-t-indigo-500"></div>
-            <p className="text-sm text-zinc-300">Opening chapter...</p>
+            <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-zinc-200 border-t-indigo-500"></div>
+            <p className="text-sm text-zinc-600">Opening chapter...</p>
           </div>
         </div>
       </main>
@@ -72,10 +72,10 @@ function ReadChapter() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-zinc-950 px-4 py-10 text-white">
-        <section className="mx-auto max-w-xl rounded-3xl border border-red-400/20 bg-red-500/10 p-6 text-center">
-          <h1 className="text-xl font-black text-red-200">Chapter not found</h1>
-          <p className="mt-2 text-sm text-red-100/80">{error}</p>
+      <main className="min-h-screen bg-[#f8f7fb] px-4 py-10 text-zinc-900">
+        <section className="mx-auto max-w-xl rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
+          <h1 className="text-xl font-black text-red-700">Chapter not found</h1>
+          <p className="mt-2 text-sm text-red-600">{error}</p>
           <button
             onClick={() => navigate(`/books/${slug}/chapters`)}
             className="mt-5 rounded-2xl bg-red-500 px-5 py-3 text-sm font-bold text-white"
@@ -92,16 +92,16 @@ function ReadChapter() {
   const paragraphs = rawText.split("\n").filter((line) => line.trim().length > 0);
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="min-h-screen bg-[#f8f7fb] text-zinc-900">
       <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
         <button
           onClick={() => navigate(`/books/${slug}/chapters`)}
-          className="mb-6 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-bold text-zinc-300 transition hover:bg-white/10"
+          className="mb-6 rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50"
         >
           Back to Chapters
         </button>
 
-        <article className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8 lg:p-10">
+        <article className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8 lg:p-10">
           <span className="inline-flex rounded-full border border-indigo-400/30 bg-indigo-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">
             Chapter {chapterNumber}
           </span>
@@ -110,9 +110,9 @@ function ReadChapter() {
             {chapterData?.title || `Chapter ${chapterNumber}`}
           </h1>
 
-          {bookTitle && <p className="mt-2 text-sm font-medium text-zinc-400">{bookTitle}</p>}
+          {bookTitle && <p className="mt-2 text-sm font-medium text-zinc-500">{bookTitle}</p>}
 
-          <div className="mt-8 space-y-5 text-base leading-8 text-zinc-200 sm:text-lg sm:leading-9">
+          <div className="mt-8 space-y-5 text-base leading-8 text-zinc-700 sm:text-lg sm:leading-9">
             {paragraphs.length > 0 ? (
               paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)
             ) : (
@@ -125,7 +125,7 @@ function ReadChapter() {
           <button
             onClick={() => goToChapter(chapterNumber - 1)}
             disabled={chapterNumber <= 1}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-2xl border border-zinc-200 bg-white px-5 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Previous Chapter
           </button>
